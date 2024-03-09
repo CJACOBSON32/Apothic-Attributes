@@ -39,14 +39,16 @@ public class ALCombatRules {
 
     /**
      * Computes the damage reduction factor for the given amount of protection points.<br>
-     * Each protection point reduces damage by 2.5%, up to 85%.
+     * Each protection point reduces damage by 4%, up to 20 prot points, then 0.33%. Caps at 85%.
      * <p>
      * In vanilla, each protection point reduces damage by 4%, up to 80%.
      *
      * @see #getDamageAfterProtection(LivingEntity, DamageSource, float, float)
      */
     public static float getProtDamageReduction(float protPoints) {
-        return 1 - Math.min(0.025F * protPoints, 0.85F);
+		float baseProt = 0.04F * Math.min(protPoints, 20);
+	    float addProt = 0.0033F * Math.max(protPoints - 20, 0);
+        return 1 - Math.min(baseProt + addProt, 0.85F);
     }
 
     /**
