@@ -14,6 +14,7 @@ import javax.annotation.Nullable;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.mojang.blaze3d.vertex.PoseStack;
 
+import dev.shadowsoffire.attributeslib.ALConfig;
 import dev.shadowsoffire.attributeslib.AttributesLib;
 import dev.shadowsoffire.attributeslib.api.IFormattableAttribute;
 import dev.shadowsoffire.attributeslib.impl.BooleanAttribute;
@@ -64,6 +65,7 @@ public class AttributesGui implements Renderable, GuiEventListener {
     protected static float scrollOffset = 0;
     // Ditto.
     protected static boolean hideUnchanged = false;
+    protected static boolean swappedFromCurios = false;
 
     protected final InventoryScreen parent;
     protected final Player player;
@@ -89,7 +91,10 @@ public class AttributesGui implements Renderable, GuiEventListener {
         this.topPos = parent.getGuiTop();
         this.toggleBtn = new ImageButton(parent.getGuiLeft() + 63, parent.getGuiTop() + 10, 10, 10, WIDTH, 0, 10, TEXTURES, 256, 256, btn -> {
             this.toggleVisibility();
-        }, Component.translatable("attributeslib.gui.show_attributes"));
+        }, Component.translatable("attributeslib.gui.show_attributes")){
+            @Override
+            public void setFocused(boolean pFocused) {}
+        };
         if (this.parent.children().size() > 1) {
             GuiEventListener btn = this.parent.children().get(0);
             this.recipeBookButton = btn instanceof ImageButton imgBtn ? imgBtn : null;
@@ -98,12 +103,15 @@ public class AttributesGui implements Renderable, GuiEventListener {
         this.hideUnchangedBtn = new HideUnchangedButton(0, 0);
     }
 
+    @SuppressWarnings("deprecation")
     public void refreshData() {
         this.data.clear();
-        ForgeRegistries.ATTRIBUTES.getValues().stream().map(this.player::getAttribute).filter(Objects::nonNull).filter(ai -> {
-            if (!hideUnchanged) return true;
-            return ai.getBaseValue() != ai.getValue();
-        }).forEach(this.data::add);
+        ForgeRegistries.ATTRIBUTES.getValues().stream()
+            .map(this.player::getAttribute)
+            .filter(Objects::nonNull)
+            .filter(ai -> !ALConfig.hiddenAttributes.contains(BuiltInRegistries.ATTRIBUTE.getKey(ai.getAttribute())))
+            .filter(ai -> !hideUnchanged || (ai.getBaseValue() != ai.getValue()))
+            .forEach(this.data::add);
         this.data.sort(this::compareAttrs);
         this.startIndex = (int) (scrollOffset * this.getOffScreenRows() + 0.5D);
     }

@@ -2,6 +2,7 @@ package dev.shadowsoffire.attributeslib.impl;
 
 import java.util.Random;
 
+import dev.shadowsoffire.attributeslib.ALConfig;
 import dev.shadowsoffire.attributeslib.AttributesLib;
 import dev.shadowsoffire.attributeslib.api.ALObjects;
 import dev.shadowsoffire.attributeslib.api.AttributeChangedValueEvent;
@@ -42,6 +43,7 @@ import net.minecraft.world.item.TridentItem;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.EntityHitResult;
 import net.minecraftforge.common.ForgeMod;
+import net.minecraftforge.event.AddReloadListenerEvent;
 import net.minecraftforge.event.ItemAttributeModifierEvent;
 import net.minecraftforge.event.entity.EntityJoinLevelEvent;
 import net.minecraftforge.event.entity.ProjectileImpactEvent;
@@ -139,7 +141,7 @@ public class AttributeEvents {
      */
     @SubscribeEvent(priority = EventPriority.LOWEST)
     public void meleeDamageAttributes(LivingAttackEvent e) {
-        if (e.getEntity().level().isClientSide) return;
+        if (e.getEntity().level().isClientSide || e.getEntity().isDeadOrDying()) return;
         if (noRecurse) return;
         noRecurse = true;
         if (e.getSource().getDirectEntity() instanceof LivingEntity attacker && AttributesUtil.isPhysicalDamage(e.getSource())) {
@@ -163,6 +165,9 @@ public class AttributeEvents {
                 target.addEffect(new MobEffectInstance(MobEffects.MOVEMENT_SLOWDOWN, (int) (15 * coldDmg), Mth.floor(coldDmg / 5)));
             }
             target.invulnerableTime = time;
+            if (target.isDeadOrDying()) {
+                target.getPersistentData().putBoolean("apoth.killed_by_aux_dmg", true);
+            }
         }
         noRecurse = false;
     }
@@ -397,5 +402,10 @@ public class AttributeEvents {
         else {
             inst.removeModifier(AttributeHelper.CREATIVE_FLIGHT_UUID);
         }
+    }
+
+    @SubscribeEvent
+    public void reloads(AddReloadListenerEvent e) {
+        e.addListener(ALConfig.makeReloader());
     }
 }

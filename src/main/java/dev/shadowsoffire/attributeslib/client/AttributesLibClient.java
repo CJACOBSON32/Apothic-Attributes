@@ -18,6 +18,7 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Multimap;
 import com.mojang.datafixers.util.Pair;
 
+import dev.shadowsoffire.attributeslib.ALConfig;
 import dev.shadowsoffire.attributeslib.AttributesLib;
 import dev.shadowsoffire.attributeslib.api.ALObjects;
 import dev.shadowsoffire.attributeslib.api.AttributeHelper;
@@ -54,21 +55,37 @@ import net.minecraft.world.item.PotionItem;
 import net.minecraft.world.item.TooltipFlag;
 import net.minecraft.world.item.alchemy.PotionUtils;
 import net.minecraftforge.client.event.ClientPlayerNetworkEvent;
+import net.minecraftforge.client.event.RegisterClientReloadListenersEvent;
 import net.minecraftforge.client.event.RegisterParticleProvidersEvent;
 import net.minecraftforge.client.event.ScreenEvent;
 import net.minecraftforge.common.MinecraftForge;
 import net.minecraftforge.event.entity.player.ItemTooltipEvent;
 import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.ModList;
+import net.minecraftforge.fml.event.lifecycle.FMLClientSetupEvent;
 
 public class AttributesLibClient {
 
     @SubscribeEvent
     public void updateClientFlyStateOnRespawn(ClientPlayerNetworkEvent.Clone e) {
         // Teleporting to another dimension constitutes a respawn - the other checks we have ensure the mayFly state returns, but not the flying state.
-        // For this one we have to ensure that the state is marked to be restored before MultiPlayerGameMode#adjustPlayer is called in ClientPacketListener#handleRespawn.
+        // For this one we have to ensure that the state is marked to be restored before MultiPlayerGameMode#adjustPlayer is called in
+        // ClientPacketListener#handleRespawn.
         if (e.getOldPlayer().getAbilities().flying) {
             ((IFlying) e.getNewPlayer()).markFlying();
+        }
+    }
+
+    @SubscribeEvent
+    public static void clientReload(RegisterClientReloadListenersEvent e) {
+        e.registerReloadListener(ALConfig.makeReloader());
+    }
+
+    @SubscribeEvent
+    public static void clientSetup(FMLClientSetupEvent e) {
+        if (ModList.get().isLoaded("curios")) {
+            MinecraftForge.EVENT_BUS.register(new CuriosClientCompat());
         }
     }
 
@@ -108,12 +125,13 @@ public class AttributesLibClient {
 
     @SubscribeEvent(priority = EventPriority.HIGH)
     public void addAttribComponent(ScreenEvent.Init.Post e) {
-        if (e.getScreen() instanceof InventoryScreen scn) {
+        if (ALConfig.enableAttributesGui && e.getScreen() instanceof InventoryScreen scn) {
             var atrComp = new AttributesGui(scn);
             e.addListener(atrComp);
             e.addListener(atrComp.toggleBtn);
             e.addListener(atrComp.hideUnchangedBtn);
-            if (AttributesGui.wasOpen) atrComp.toggleVisibility();
+            if (AttributesGui.wasOpen || AttributesGui.swappedFromCurios) atrComp.toggleVisibility();
+            AttributesGui.swappedFromCurios = false;
         }
     }
 
@@ -162,6 +180,8 @@ public class AttributesLibClient {
 
     @SubscribeEvent
     public void potionTooltips(ItemTooltipEvent e) {
+        if (!ALConfig.enablePotionTooltips) return;
+
         ItemStack stack = e.getItemStack();
         List<Component> tooltips = e.getToolTip();
 
